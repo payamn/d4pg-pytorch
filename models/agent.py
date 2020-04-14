@@ -74,7 +74,9 @@ class Agent(object):
             distance_avg = []
             while not done:
                 action = self.actor.get_action(state)
-                if self.agent_type == "exploration":
+                if self.agent_type == "supervisor":
+                    action = self.env_wrapper.env.get_supervised_action()
+                elif self.agent_type == "exploration":
                     action = self.ou_noise.get_action(action, num_steps)
                     action = action.squeeze(0)
                 else:
@@ -107,12 +109,12 @@ class Agent(object):
                     print ("agent {} done steps: {}/{}".format(self.n_agent, num_steps, self.max_steps))
                     # add rest of experiences remaining in buffer
                     while len(self.exp_buffer) != 0:
-                        print("agent {} exp_buffer_len {}".format(self.n_agent, len(self.exp_buffer)))
+                        #print("agent {} exp_buffer_len {}".format(self.n_agent, len(self.exp_buffer)))
                         state_0, action_0, reward_0 = self.exp_buffer.popleft()
                         discounted_reward = reward_0
                         gamma = self.config['discount_rate']
                         for (_, _, r_i) in self.exp_buffer:
-                            print("agent {} exp_buffer_len {}".format(self.n_agent, len(self.exp_buffer)))
+                            #print("agent {} exp_buffer_len {}".format(self.n_agent, len(self.exp_buffer)))
                             discounted_reward += r_i * gamma
                             gamma *= self.config['discount_rate']
                         replay_queue.put([state_0, action_0, discounted_reward, next_state, done, gamma])
@@ -120,7 +122,7 @@ class Agent(object):
 
                 num_steps += 1
 
-            print("agent {} finished if".format(self.n_agent))
+            #print("agent {} finished if".format(self.n_agent))
             # Log metrics
             step = update_step.value
             if self.agent_type == "exploitation":
@@ -128,6 +130,12 @@ class Agent(object):
                 self.logger.scalar_summary("agent/angle_var", np.rad2deg(np.var(angle_avg)), step)
                 self.logger.scalar_summary("agent/distance", np.mean(distance_avg), step)
                 self.logger.scalar_summary("agent/distance_var", np.var(distance_avg), step)
+                observation_image = self.env_wrapper.env.get_current_observation_image()
+                if num_steps == self.max_steps:
+                    self.logger.image_summar("agent/observation_end", observation_image, num_steps)
+                else:
+                    self.logger.image_summar("agent/observation_p_{:2.3f}".format(discounted_reward), observation_image, num_steps)
+
             self.logger.scalar_summary("agent/reward", episode_reward, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
 
@@ -139,7 +147,7 @@ class Agent(object):
                 print("reward is: {} step: {} ".format(episode_reward, step))
 
             rewards.append(episode_reward)
-            if self.agent_type == "exploration" and self.local_episode % self.config['update_agent_ep'] == 0:
+            if (self.agent_type == "exploration" or self.agent_type == "supervisor") and self.local_episode % self.config['update_agent_ep'] == 0:
                 self.update_actor_learner(learner_w_queue)
 
         # while not replay_queue.empty():
@@ -149,7 +157,7 @@ class Agent(object):
         # if self.n_agent == 0:
         #    self.save_replay_gif()
 
-        print(f"Agent {self.n_agent} done.")
+        #print(f"Agent {self.n_agent} done.")
 
     def save(self, checkpoint_name):
         last_path = f"{self.log_dir}"
