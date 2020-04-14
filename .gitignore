@@ -1,0 +1,10 @@
+.idea/*
+**/wandb/*
+*.pyc
+*.swp
+**/weights/*
+**/dataset/*
+**/results/*
+**/*result*/*
+**/*.swo
+**/__pycache__/**
