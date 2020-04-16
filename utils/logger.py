@@ -26,7 +26,10 @@ class Logger(object):
         self.warning = logger.warning
 
     def image_summar(self, tag, image, step):
-        self.writer.add_image(tag, image, step, dataformats='HWC')
+        if self.use_wandb:
+            wandb.log({tag: wandb.Image(image)},step=step)
+        else:
+            self.writer.add_image(tag, image, step, dataformats='HWC')
 
     def scalar_summary(self, tag, value, step):
         """

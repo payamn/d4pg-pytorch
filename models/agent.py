@@ -70,7 +70,7 @@ class Agent(object):
             print("called reset on agent {}".format(self.n_agent))
             self.ou_noise.reset()
             done = False
-            diff_heigt_avg = []
+            heading_avg = []
             reward_avg = []
             while not done:
                 action = self.actor.get_action(state)
@@ -82,7 +82,7 @@ class Agent(object):
                 else:
                     action = action.detach().cpu().numpy().flatten()
                 next_state, reward, done = self.env_wrapper.step(action)
-                diff_heigt_avg.append(state[1]-state[0])
+                heading_avg.append(state[-1])
                 reward_avg.append(reward)
                 episode_reward += reward
 
@@ -126,13 +126,13 @@ class Agent(object):
             # Log metrics
             step = update_step.value
             if self.agent_type == "exploitation":
-                self.logger.scalar_summary("agent/diff_height_goal", np.mean(diff_heigt_avg), step)
+                self.logger.scalar_summary("agent/heading_avg", np.mean(heading_avg), step)
                 self.logger.scalar_summary("agent/reward_avg", np.mean(reward_avg), step)
-                #observation_image = self.env_wrapper.env.get_current_observation_image()
-                #if num_steps == self.max_steps:
-                #    self.logger.image_summar("agent/observation_end", observation_image, num_steps)
-                #else:
-                #    self.logger.image_summar("agent/observation_p_{:2.3f}".format(discounted_reward), observation_image, num_steps)
+                observation_image = self.env_wrapper.env.get_current_observation_image()
+                if num_steps == self.max_steps:
+                    self.logger.image_summar("agent/observation_end", observation_image, step)
+                else:
+                    self.logger.image_summar("agent/observation_p_{:2.3f}".format(discounted_reward), observation_image, step)
 
             self.logger.scalar_summary("agent/reward", episode_reward, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
