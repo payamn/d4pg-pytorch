@@ -35,7 +35,7 @@ class Agent(object):
 
         # Logger
         log_path = f"{log_dir}/agent-{n_agent}"
-        self.logger = Logger(log_path)
+        self.logger = Logger(log_path, name = f"agent-{n_agent}")
 
     def update_actor_learner(self, learner_w_queue):
         """Update local actor to the actor from learner. """
@@ -68,10 +68,9 @@ class Agent(object):
             print (state.shape)
             print("called reset on agent {}".format(self.n_agent))
             self.ou_noise.reset()
-            self.env_wrapper.env.resume_simulator()
             done = False
-            angle_avg = []
-            distance_avg = []
+            diff_heigt_avg = []
+            reward_avg = []
             while not done:
                 action = self.actor.get_action(state)
                 if self.agent_type == "supervisor":
@@ -82,8 +81,8 @@ class Agent(object):
                 else:
                     action = action.detach().cpu().numpy().flatten()
                 next_state, reward, done = self.env_wrapper.step(action)
-                angle_avg.append(state[0])
-                distance_avg.append(math.hypot(state[1], state[2]))
+                diff_heigt_avg.append(state[1]-state[0])
+                reward_avg.append(reward)
                 episode_reward += reward
 
                 state = self.env_wrapper.normalise_state(state)
@@ -106,7 +105,7 @@ class Agent(object):
                 state = next_state
 
                 if done or num_steps == self.max_steps:
-                    print ("agent {} done steps: {}/{}".format(self.n_agent, num_steps, self.max_steps))
+                    print ("agent {} done steps: {}/{} episode reward: {}".format(self.n_agent, num_steps, self.max_steps, episode_reward))
                     # add rest of experiences remaining in buffer
                     while len(self.exp_buffer) != 0:
                         #print("agent {} exp_buffer_len {}".format(self.n_agent, len(self.exp_buffer)))
@@ -126,15 +125,13 @@ class Agent(object):
             # Log metrics
             step = update_step.value
             if self.agent_type == "exploitation":
-                self.logger.scalar_summary("agent/angle", np.rad2deg(np.mean(angle_avg)), step)
-                self.logger.scalar_summary("agent/angle_var", np.rad2deg(np.var(angle_avg)), step)
-                self.logger.scalar_summary("agent/distance", np.mean(distance_avg), step)
-                self.logger.scalar_summary("agent/distance_var", np.var(distance_avg), step)
-                observation_image = self.env_wrapper.env.get_current_observation_image()
-                if num_steps == self.max_steps:
-                    self.logger.image_summar("agent/observation_end", observation_image, num_steps)
-                else:
-                    self.logger.image_summar("agent/observation_p_{:2.3f}".format(discounted_reward), observation_image, num_steps)
+                self.logger.scalar_summary("agent/diff_height_goal", np.mean(diff_heigt_avg), step)
+                self.logger.scalar_summary("agent/reward_avg", np.mean(reward_avg), step)
+                #observation_image = self.env_wrapper.env.get_current_observation_image()
+                #if num_steps == self.max_steps:
+                #    self.logger.image_summar("agent/observation_end", observation_image, num_steps)
+                #else:
+                #    self.logger.image_summar("agent/observation_p_{:2.3f}".format(discounted_reward), observation_image, num_steps)
 
             self.logger.scalar_summary("agent/reward", episode_reward, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
@@ -177,7 +174,6 @@ class Agent(object):
             os.makedirs(dir_name)
 
         state = self.env_wrapper.reset()
-        self.env_wrapper.env.resume_simulator()
         for step in range(self.max_steps):
             action = self.actor.get_action(state)
             action = action.cpu().detach().numpy()

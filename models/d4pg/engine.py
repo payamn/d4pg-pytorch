@@ -34,7 +34,7 @@ def sampler_worker(config, replay_queue, batch_queue, replay_priorities_queue, t
     batch_size = config['batch_size']
 
     # Logger
-    logger = Logger(f"{log_dir}/data_struct")
+    logger = Logger(f"{log_dir}/data_struct", name="sampler")
 
     # Create replay buffer
     replay_buffer = create_replay_buffer(config)

@@ -42,7 +42,7 @@ class LearnerD4PG(object):
         self.prioritized_replay = config['replay_memory_prioritized']
         self.learner_w_queue = learner_w_queue
 
-        self.logger = Logger(f"{log_dir}/learner")
+        self.logger = Logger(f"{log_dir}/learner", name="learner")
 
         # Noise process
         self.ou_noise = OUNoise(dim=config["action_dim"], low=config["action_low"], high=config["action_high"])
