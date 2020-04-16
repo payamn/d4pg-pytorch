@@ -4,7 +4,7 @@ import imageio
 from glob import glob
 import os
 import yaml
-import gym_gazebo
+import gym_reachability
 
 
 class OUNoise(object):
