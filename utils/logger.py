@@ -1,4 +1,5 @@
 from tensorboardX import SummaryWriter
+import wandb
 import logging
 
 logger = logging.getLogger(__name__)
@@ -6,14 +7,20 @@ logger = logging.getLogger(__name__)
 
 class Logger(object):
 
-    def __init__(self, log_dir):
+    def __init__(self, log_dir, name, project_name="crazy_flie", use_wandb=True):
         """
         General logger.
 
         Args:
             log_dir (str): log directory
         """
-        self.writer = SummaryWriter(log_dir)
+
+        if not use_wandb:
+            self.writer = SummaryWriter(log_dir)
+        else:
+            wandb.init(project=project_name, name=name)
+
+        self.use_wandb = use_wandb
         self.info = logger.info
         self.debug = logger.debug
         self.warning = logger.warning
@@ -29,7 +36,10 @@ class Logger(object):
             value (float): value
             step (int): update step
         """
-        self.writer.add_scalar(tag, value, step)
+        if self.use_wandb:
+            wandb.log({tag: value}, step=step)
+        else:
+            self.writer.add_scalar(tag, value, step)
 
     def close(self):
         self.writer.close()
