@@ -14,7 +14,7 @@ def create_env_wrapper(config):
         return BipedalWalker(config)
     elif env == "lunarlandercontinuous-v2":
         return LunarLanderContinous(config)
-    elif env == "reachability-v0" or env == "gazebo-v0" or "vicon-v0":
+    elif env == "reachability-v0" or env == "gazebo-v0" or env == "vicon-v0":
         return GazeboContinous(config)
     else:
         raise ValueError("Unknown environment.")
