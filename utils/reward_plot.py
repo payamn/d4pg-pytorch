@@ -1,56 +1,41 @@
-import json
-import numpy as np
-import pandas as pd
 import matplotlib.pyplot as plt
 from matplotlib.pyplot import figure
+import pandas as pd
 import seaborn as sns
-sns.set_style('whitegrid')
-colors = ['greyish', 'faded blue', "faded green"]
-sns.set_palette(sns.xkcd_palette(colors))
+import pickle
+from glob import glob
 
 
-def load_xy(path):
-    with open(path, 'rb') as f:
-        data = json.load(f)
-    data = np.asarray(data)
-    return data[:, 1:]
+def plot_rewards(dirname, figsize=(10, 5), dpi=150):
+    """
+    Plot rewards from all agents.
 
+    Args:
+        dirname (str): directory with .pkl logs.
+    """
+    # Read pickle logs
+    file_paths = glob(f"{dirname}/*agent*.pkl")
+    files = []
+    for fp in file_paths:
+        with open(fp, 'rb') as f:
+            unpickler = pickle.Unpickler(f)
+            data = unpickler.load()
+            files.append(data)
 
-def plot_data(paths, output_path, n_rows=1, n_cols=3, smooth_len=5, lw=3):
-    figure(num=0, figsize=(20, 5), dpi=100, facecolor='w', edgecolor='k')
-    for i_subplot, env_name in enumerate(paths):
-        ax = plt.subplot(n_rows, n_cols, i_subplot + 1)
-        plt.title(env_name)
+    # Create dataframe
+    reward_index = files[0]['tasks'].index('reward')
+    df = pd.concat([pd.Series(log_pkl['results'][reward_index])
+                    for log_pkl in files], axis=1)
+    df.columns = [f'reward_{i}' for i in range(len(files))]
+    df['episode'] = df.index
 
-        for model_name in paths[env_name]:
-            data = load_xy(paths[env_name][model_name])
+    # Plot reward from each agent-process
+    figure(num=0, figsize=figsize, dpi=dpi, facecolor='w', edgecolor='k')
+    sns.set_style('whitegrid')
+    for i in range(len(file_paths)):
+        sns.lineplot(data=df, y=f'reward_{i}', x='episode')
+    plt.legend(title='Reward', loc='upper left',
+               labels=[f"Process {i}" for i in range(len(files))])
 
-            # Smooth reward
-            for i in range(data.shape[0] - 1, smooth_len, -1):
-                data[i, 1] = np.mean(data[i - smooth_len:i, 1])
-
-            data = pd.DataFrame(data, columns=['step', 'reward'])
-            data['model'] = model_name
-            sns.lineplot(data=data, x='step', y='reward', lw=lw)
-
-        ax.legend(labels=list(paths[env_name]), loc='lower right')
-
-    plt.savefig(output_path)
-
-
-if __name__ == "__main__":
-    paths = {
-        'Pendulum-v0': {
-            'D3PG': '~/pendulum_d3pg.json',
-            'D4PG': '~/pendulum_d4pg.json'
-        },
-        'LunarLanderContinuous-v2': {
-            'D3PG': '~/lunar_d3pg.json',
-            'D4PG': '~/lunar_d4pg.json'
-        },
-        'BipedalWalker-v2': {
-            'D3PG': '~/bipedal_d3pg.json',
-            'D4PG': '~/bipedal_d4pg.json'
-        }
-    }
-    plot_data(paths, "plot.png", n_rows=1, n_cols=3)
+    fn = f"{dirname}/reward_plot.png"
+    plt.savefig(fn)

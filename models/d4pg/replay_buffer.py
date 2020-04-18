@@ -4,12 +4,11 @@
 # Creates prioritised replay memory buffer to add experiences to and sample batches of experiences from
 '''
 
-import os
-import pickle
+
 import numpy as np
 import random
 
-from .segment_tree import SumSegmentTree, MinSegmentTree
+from utils.segment_tree import SumSegmentTree, MinSegmentTree
 
 
 class ReplayBuffer(object):
@@ -30,9 +29,12 @@ class ReplayBuffer(object):
     def add(self, obs_t, action, reward, obs_tp1, done, gamma):
         data = (obs_t, action, reward, obs_tp1, done, gamma)
 
-        self._storage.append(data)
+        if len(self._storage) < self._maxsize:
+            self._storage.append(data)
+        else:
+            self._storage[self._next_idx] = data
 
-        self._next_idx += 1
+        self._next_idx = (self._next_idx + 1) % self._maxsize
 
     def remove(self, num_samples):
         del self._storage[:num_samples]
@@ -79,15 +81,9 @@ class ReplayBuffer(object):
         inds = np.zeros(len(idxes))
         return self._encode_sample(idxes) + [weights, inds]
 
-    def dump(self, save_dir):
-        fn = os.path.join(save_dir, "replay_buffer.pkl")
-        with open(fn, 'wb') as f:
-            pickle.dump(self._storage, f)
-        print(f"Buffer dumped to {fn}")
-
 
 class PrioritizedReplayBuffer(ReplayBuffer):
-    def __init__(self, size, alpha, save_dir):
+    def __init__(self, size, alpha):
         """Create Prioritized Replay buffer.
         Parameters
         ----------
@@ -207,12 +203,6 @@ class PrioritizedReplayBuffer(ReplayBuffer):
             self._it_min[idx] = priority ** self._alpha
 
             self._max_priority = max(self._max_priority, priority)
-
-    def dump(self, save_dir):
-        fn = os.path.join(save_dir, "replay_buffer.pkl")
-        with open(fn, 'wb') as f:
-            pickle.dump(self._storage, f)
-        print(f"Buffer dumped to {fn}")
 
 
 def create_replay_buffer(config):

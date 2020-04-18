@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class ValueNetwork(nn.Module):
@@ -33,13 +34,13 @@ class ValueNetwork(nn.Module):
 
     def forward(self, state, action):
         x = torch.cat([state, action], 1)
-        x = torch.relu(self.linear1(x))
-        x = torch.relu(self.linear2(x))
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
         x = self.linear3(x)
         return x
 
     def get_probs(self, state, action):
-        return torch.softmax(self.forward(state, action), dim=1)
+        return F.softmax(self.forward(state, action), dim=1)
 
 
 class PolicyNetwork(nn.Module):
@@ -55,7 +56,7 @@ class PolicyNetwork(nn.Module):
         """
         super(PolicyNetwork, self).__init__()
         self.device = device
-
+        print ("numstate {} hidden {}".format(num_states, hidden_size))
         self.linear1 = nn.Linear(num_states, hidden_size)
         self.linear2 = nn.Linear(hidden_size, hidden_size)
         self.linear3 = nn.Linear(hidden_size, num_actions)
@@ -66,16 +67,13 @@ class PolicyNetwork(nn.Module):
         self.to(device)
 
     def forward(self, state):
-        x = torch.relu(self.linear1(state))
-        x = torch.relu(self.linear2(x))
+        x = F.relu(self.linear1(state))
+        x = F.relu(self.linear2(x))
         x = torch.tanh(self.linear3(x))
+
         return x
 
-    def to(self, device):
-        super(PolicyNetwork, self).to(device)
-        self.device = device
-
     def get_action(self, state):
-        state = torch.from_numpy(state).float().unsqueeze(0).to(self.device)
+        state = torch.tensor(state).float().unsqueeze(0).to(self.device)
         action = self.forward(state)
         return action

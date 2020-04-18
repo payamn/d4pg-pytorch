@@ -1,10 +1,13 @@
 import shutil
+import math
+import numpy as np
 import os
 import time
 from collections import deque
+import matplotlib.pyplot as plt
 import torch
 
-from utils.utils import OUNoise, make_gif, empty_torch_queue
+from utils.utils import OUNoise, make_gif
 from utils.logger import Logger
 from env.utils import create_env_wrapper
 
@@ -24,29 +27,25 @@ class Agent(object):
 
         # Create environment
         self.env_wrapper = create_env_wrapper(config)
+        self.env_wrapper.env.set_agent(self.n_agent)
         self.ou_noise = OUNoise(dim=config["action_dim"], low=config["action_low"], high=config["action_high"])
         self.ou_noise.reset()
 
         self.actor = policy
-        print("Agent ", n_agent, self.actor.device)
 
         # Logger
         log_path = f"{log_dir}/agent-{n_agent}"
         self.logger = Logger(log_path)
 
-    def update_actor_learner(self, learner_w_queue, training_on):
+    def update_actor_learner(self, learner_w_queue):
         """Update local actor to the actor from learner. """
-        if not training_on.value:
+        if learner_w_queue.empty():
             return
-        try:
-            source = learner_w_queue.get_nowait()
-        except:
-            return
+        source = learner_w_queue.get()
         target = self.actor
         for target_param, source_param in zip(target.parameters(), source):
             w = torch.tensor(source_param).float()
             target_param.data.copy_(w)
-        del source
 
     def run(self, training_on, replay_queue, learner_w_queue, update_step):
         # Initialise deque buffer to store experiences for N-step returns
@@ -60,23 +59,30 @@ class Agent(object):
             self.local_episode += 1
             self.global_episode.value += 1
             self.exp_buffer.clear()
-
             if self.local_episode % 100 == 0:
                 print(f"Agent: {self.n_agent}  episode {self.local_episode}")
 
             ep_start_time = time.time()
+            print("call reset on agent {}".format(self.n_agent))
             state = self.env_wrapper.reset()
+            print (state.shape)
+            print("called reset on agent {}".format(self.n_agent))
             self.ou_noise.reset()
             done = False
+            angle_avg = []
+            distance_avg = []
             while not done:
                 action = self.actor.get_action(state)
-                if self.agent_type == "exploration":
+                if self.agent_type == "supervisor":
+                    action = self.env_wrapper.env.get_supervised_action()
+                elif self.agent_type == "exploration":
                     action = self.ou_noise.get_action(action, num_steps)
                     action = action.squeeze(0)
                 else:
                     action = action.detach().cpu().numpy().flatten()
                 next_state, reward, done = self.env_wrapper.step(action)
-
+                angle_avg.append(state[0])
+                distance_avg.append(math.hypot(state[1], state[2]))
                 episode_reward += reward
 
                 state = self.env_wrapper.normalise_state(state)
@@ -93,64 +99,79 @@ class Agent(object):
                     for (_, _, r_i) in self.exp_buffer:
                         discounted_reward += r_i * gamma
                         gamma *= self.config['discount_rate']
-                    # We want to fill buffer only with form explorator
-                    if self.agent_type == "exploration":
-                        try:
-                            replay_queue.put_nowait([state_0, action_0, discounted_reward, next_state, done, gamma])
-                        except:
-                            pass
+                    if not replay_queue.full():
+                        replay_queue.put([state_0, action_0, discounted_reward, next_state, done, gamma])
 
                 state = next_state
 
                 if done or num_steps == self.max_steps:
+                    print ("agent {} done steps: {}/{} episode reward: {}".format(self.n_agent, num_steps, self.max_steps, episode_reward))
                     # add rest of experiences remaining in buffer
                     while len(self.exp_buffer) != 0:
+                        #print("agent {} exp_buffer_len {}".format(self.n_agent, len(self.exp_buffer)))
                         state_0, action_0, reward_0 = self.exp_buffer.popleft()
                         discounted_reward = reward_0
                         gamma = self.config['discount_rate']
                         for (_, _, r_i) in self.exp_buffer:
+                            #print("agent {} exp_buffer_len {}".format(self.n_agent, len(self.exp_buffer)))
                             discounted_reward += r_i * gamma
                             gamma *= self.config['discount_rate']
-                        if self.agent_type == "exploration":
-                            try:
-                                replay_queue.put_nowait([state_0, action_0, discounted_reward, next_state, done, gamma])
-                            except:
-                               pass
+                        replay_queue.put([state_0, action_0, discounted_reward, next_state, done, gamma])
                     break
 
                 num_steps += 1
 
+            #print("agent {} finished if".format(self.n_agent))
             # Log metrics
             step = update_step.value
+            if self.agent_type == "exploitation":
+                self.logger.scalar_summary("agent/angle", np.rad2deg(np.mean(angle_avg)), step)
+                self.logger.scalar_summary("agent/angle_var", np.rad2deg(np.var(angle_avg)), step)
+                self.logger.scalar_summary("agent/distance", np.mean(distance_avg), step)
+                self.logger.scalar_summary("agent/distance_var", np.var(distance_avg), step)
+                #observation_image = self.env_wrapper.env.get_current_observation_image()
+                #if num_steps == self.max_steps:
+                #    self.logger.image_summar("agent/observation_end", observation_image, num_steps)
+                #else:
+                #    self.logger.image_summar("agent/observation_p_{:2.3f}".format(discounted_reward), observation_image, num_steps)
+
             self.logger.scalar_summary("agent/reward", episode_reward, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
 
             # Saving agent
-            reward_outperformed = episode_reward - best_reward > self.config["save_reward_threshold"]
-            time_to_save = self.local_episode % self.num_episode_save == 0
-            if self.n_agent == 0 and (time_to_save or reward_outperformed):
+            if self.local_episode % self.num_episode_save == 0 or episode_reward > best_reward:
                 if episode_reward > best_reward:
                     best_reward = episode_reward
                 self.save(f"local_episode_{self.local_episode}_reward_{best_reward:4f}")
+                print("reward is: {} step: {} ".format(episode_reward, step))
 
             rewards.append(episode_reward)
-            if self.agent_type == "exploration" and self.local_episode % self.config['update_agent_ep'] == 0:
-                self.update_actor_learner(learner_w_queue, training_on)
+            if (self.agent_type == "exploration" or self.agent_type == "supervisor") and self.local_episode % self.config['update_agent_ep'] == 0:
+                self.update_actor_learner(learner_w_queue)
 
-        empty_torch_queue(replay_queue)
-        print(f"Agent {self.n_agent} done.")
+        # while not replay_queue.empty():
+        #     replay_queue.get()
+
+        # Save replay from the first agent only
+        # if self.n_agent == 0:
+        #    self.save_replay_gif()
+
+        #print(f"Agent {self.n_agent} done.")
 
     def save(self, checkpoint_name):
+        last_path = f"{self.log_dir}"
         process_dir = f"{self.log_dir}/agent_{self.n_agent}"
         if not os.path.exists(process_dir):
             os.makedirs(process_dir)
+        if not os.path.exists(last_path):
+            os.makedirs(last_path)
         model_fn = f"{process_dir}/{checkpoint_name}.pt"
         torch.save(self.actor, model_fn)
+        model_fn = f"{last_path}/best.pt"
+        torch.save(self.actor, model_fn)
 
-    def save_replay_gif(self, output_dir_name):
-        import matplotlib.pyplot as plt
-
-        dir_name = output_dir_name
+    def save_replay_gif(self):
+        dir_name = "replay_render"
         if not os.path.exists(dir_name):
             os.makedirs(dir_name)
 

@@ -1,15 +1,20 @@
+import gym
+#from utils.utils import NormalizedActions
+
 from .pendulum import PendulumWrapper
 from .bipedal import BipedalWalker
-from .env_wrapper import EnvWrapper
 from .lunar_lander_continous import LunarLanderContinous
-
+from .gazebo_continous import GazeboContinous
 
 def create_env_wrapper(config):
-    env_name = config['env']
-    if env_name == "Pendulum-v0":
+    env = config['env'].lower()
+    if env == "pendulum-v0":
         return PendulumWrapper(config)
-    elif env_name == "BipedalWalker-v2":
+    elif env == "bipedalwalker-v2":
         return BipedalWalker(config)
-    elif env_name == "LunarLanderContinuous-v2":
+    elif env == "lunarlandercontinuous-v2":
         return LunarLanderContinous(config)
-    return EnvWrapper(env_name)
+    elif env == "gazebo-v0" or "vicon-v0" or "crazyflie-v0":
+        return GazeboContinous(config)
+    else:
+        raise ValueError("Unknown environment.")

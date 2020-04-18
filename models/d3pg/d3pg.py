@@ -4,11 +4,11 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import time
-import queue
 
-from utils.utils import OUNoise, empty_torch_queue
+from utils.utils import OUNoise
 from utils.logger import Logger
-from .networks import ValueNetwork
+from utils.reward_plot import plot_rewards
+from .networks import ValueNetwork, PolicyNetwork
 
 
 class LearnerD3PG(object):
@@ -19,12 +19,11 @@ class LearnerD3PG(object):
         Args:
             config (dict): configuration
         """
-        self.config = config
         hidden_dim = config['dense_size']
         value_lr = config['critic_learning_rate']
         policy_lr = config['actor_learning_rate']
-        state_dim = config['state_dim']
-        action_dim = config['action_dim']
+        state_dim = config['state_dims']
+        action_dim = config['action_dims']
         self.num_train_steps = config['num_steps_train']
         self.device = config['device']
         self.max_steps = config['max_ep_length']
@@ -98,12 +97,9 @@ class LearnerD3PG(object):
             )
 
         # Send updated learner to the queue
-        if update_step.value % 100 == 0:
-            try:
-                params = [p.data.to(self.config["agent_device"]).detach().numpy() for p in self.policy_net.parameters()]
-                self.learner_w_queue.put_nowait(params)
-            except:
-                pass
+        if not self.learner_w_queue.full():
+            params = [p.data.cpu().detach().numpy() for p in self.policy_net.parameters()]
+            self.learner_w_queue.put(params)
 
         # Logging
         step = update_step.value
@@ -113,16 +109,16 @@ class LearnerD3PG(object):
 
     def run(self, training_on, batch_queue, update_step):
         while update_step.value < self.num_train_steps:
-            try:
-                batch = batch_queue.get_nowait()
-            except queue.Empty:
+            if batch_queue.empty():
                 continue
+
+            batch = batch_queue.get()
             self._update_step(batch, update_step)
 
             update_step.value += 1
-            if update_step.value % 1000 == 0:
+            if update_step.value % 50 == 0:
                 print("Training step ", update_step.value)
 
         training_on.value = 0
-        empty_torch_queue(self.learner_w_queue)
+        plot_rewards(self.log_dir)
         print("Exit learner.")
