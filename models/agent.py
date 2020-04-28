@@ -28,6 +28,7 @@ class Agent(object):
         # Create environment
         self.env_wrapper = create_env_wrapper(config)
         self.env_wrapper.env.set_agent(self.n_agent)
+        print ("set agent {}".format(n_agent))
         self.ou_noise = OUNoise(dim=config["action_dim"], low=config["action_low"], high=config["action_high"])
         self.ou_noise.reset()
 
@@ -65,7 +66,7 @@ class Agent(object):
             ep_start_time = time.time()
             print("call reset on agent {}".format(self.n_agent))
             state = self.env_wrapper.reset()
-            self.env_wrapper.env.resume_simulator()
+            #self.env_wrapper.env.resume_simulator()
             print (state.shape)
             print("called reset on agent {}".format(self.n_agent))
             self.ou_noise.reset()
@@ -175,7 +176,7 @@ class Agent(object):
             os.makedirs(dir_name)
 
         state = self.env_wrapper.reset()
-        self.env_wrapper.env.resume_simulator()
+        #self.env_wrapper.env.resume_simulator()
         for step in range(self.max_steps):
             action = self.actor.get_action(state)
             action = action.cpu().detach().numpy()

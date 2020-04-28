@@ -5,6 +5,7 @@ class EnvWrapper:
     def __init__(self, env_name):
         self.env_name = env_name
         self.env = gym.make(self.env_name)
+        print ("env_name {}".format(env_name))
 
     def reset(self):
         state = self.env.reset()
