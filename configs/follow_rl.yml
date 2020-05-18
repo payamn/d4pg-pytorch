@@ -1,21 +1,21 @@
 # Environment parameters
 
-env: gazebo-v0
-state_dim: 47
-action_dim: 2
+env: gazeboros-v0
+state_dim: 48
+action_dim: 3
 action_low: -1
 action_high: 1
 num_agents: 4
 random_seed: 2019
-policy_weights: /home/payam/ros2_ws/src/follow_ahead_rl/scripts/results/
-policy_weights_best: /home/payam/ros2_ws/src/follow_ahead_rl/scripts/results/policy_best2.pt
-value_weights: /home/payam/ros2_ws/src/follow_ahead_rl/scripts/results/
-value_weights_best: /home/payam/ros2_ws/src/follow_ahead_rl/scripts/results/value_best2.pt
+policy_weights: /media/payam/data/catkin_ws/src/follow_ahead_rl/script/results/
+policy_weights_best: /media/payam/data/catkin_ws/src/follow_ahead_rl/script/results/policy_best2.pt
+value_weights: /media/payam/data/catkin_ws/src/follow_ahead_rl/script/results/
+value_weights_best: /media/payam/data/catkin_ws/src/follow_ahead_rl/script/results/value_best2.pt
 
 # Training parameters
 
 model: d4pg
-batch_size: 1024
+batch_size: 24
 num_steps_train: 9000000 # number of episodes from all agents
 max_ep_length: 130 # maximum number of steps per episode
 replay_mem_size: 200000 # maximum capacity of replay memory
