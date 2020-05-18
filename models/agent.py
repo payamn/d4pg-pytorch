@@ -133,7 +133,7 @@ class Agent(object):
                 if num_steps == self.max_steps:
                     self.logger.image_summar("agent/observation_end", observation_image, step)
                 else:
-                    self.logger.image_summar("agent/observation_p_{:2.3f}".format(discounted_reward), observation_image, step)
+                    self.logger.image_summar("agent/observation_error", observation_image, step)
 
             self.logger.scalar_summary("agent/reward", episode_reward, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
