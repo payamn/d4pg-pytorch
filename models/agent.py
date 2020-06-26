@@ -133,10 +133,11 @@ class Agent(object):
                 self.logger.scalar_summary("agent/heading_avg", np.mean(heading_avg), step)
                 self.logger.scalar_summary("agent/reward_avg", np.mean(reward_avg), step)
                 self.logger.scalar_summary("agent/distance_avg", np.mean(distance_avg), step)
-                if num_steps == self.max_steps:
-                    self.logger.image_summar("agent/observation_end", observation_image, step)
-                else:
-                    self.logger.image_summar("agent/observation_error", observation_image, step)
+                observation_image_type = "agent/observation_error"
+                if (hasattr(self.env_wrapper.env, 'is_successful') and self.env_wrapper.env.is_successful()) or \
+                    (not hasattr(self.env_wrapper.env, 'is_successful') and num_steps == self.max_steps):
+                    observation_image_type = "agent/observation_end"
+                self.logger.image_summar(observation_image_type, observation_image, step)
             else:
                 if num_steps == self.max_steps:
                     self.logger.image_summar("agent_{}/observation_end".format(self.n_agent), observation_image, step)
