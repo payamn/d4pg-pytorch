@@ -74,6 +74,7 @@ class Agent(object):
             heading_avg = []
             reward_avg = []
             distance_avg = []
+            skip_run = False
             while not done:
                 action = self.actor.get_action(state)
                 if self.agent_type == "supervisor":
@@ -109,6 +110,10 @@ class Agent(object):
                 state = next_state
 
                 if done or num_steps == self.max_steps:
+                    if hasattr(self.env_wrapper.env, 'is_skip_run') and self.env_wrapper.env.is_skip_run():
+                        print("skiping this run as it is not useful")
+                        skip_run = True
+                        break
                     print ("agent {} done steps: {}/{} episode reward: {}".format(self.n_agent, num_steps, self.max_steps, episode_reward))
                     # add rest of experiences remaining in buffer
                     while len(self.exp_buffer) != 0:
@@ -127,6 +132,8 @@ class Agent(object):
 
             #print("agent {} finished if".format(self.n_agent))
             # Log metrics
+            if skip_run:
+                continue
             step = update_step.value
             observation_image = self.env_wrapper.env.get_current_observation_image()
             if self.agent_type == "exploitation":
@@ -145,6 +152,7 @@ class Agent(object):
                     self.logger.image_summar("agent_{}/observation_error".format(self.n_agent), observation_image, step)
 
             self.logger.scalar_summary("agent/reward", episode_reward, step)
+            self.logger.scalar_summary("agent/episode_step", num_steps, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
 
             # Saving agent
