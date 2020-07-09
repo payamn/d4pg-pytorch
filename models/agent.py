@@ -64,8 +64,8 @@ class Agent(object):
             if all_test_done:
                 break
             elif self.config["test"]:
-                if self.logger is not None:
-                    self.logger.close()
+                # if self.logger is not None:
+                #     self.logger.close()
                 self.logger = Logger(log_path, name = f"{self.config['log_string']}_path_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
             episode_reward = 0
             num_steps = 0
@@ -155,18 +155,22 @@ class Agent(object):
             step = update_step.value
             observation_image = self.env_wrapper.env.get_current_observation_image()
             if self.agent_type == "exploitation":
+                pre_log = ""
                 if self.config["test"]:
+                    #self.logger.close()
                     self.logger = Logger(log_path, name = f"{self.config['log_string']}_p_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
-                    step=0
+                    step = 1
+                    pre_log = f"path_{self.env_wrapper.env.get_test_path_number()}"
                 if len(heading_avg)>0:
-                    self.logger.scalar_summary("agent/heading_avg", np.mean(heading_avg), step)
-                self.logger.scalar_summary("agent/reward_avg", np.mean(reward_avg), step)
-                self.logger.scalar_summary("agent/distance_avg", np.mean(distance_avg), step)
-                observation_image_type = "agent/observation_error"
+                    self.logger.scalar_summary(f"{pre_log}agent/heading_avg", np.mean(heading_avg), step)
+                self.logger.scalar_summary(f"{pre_log}agent/reward_avg", np.mean(reward_avg), step)
+                self.logger.scalar_summary(f"{pre_log}agent/distance_avg", np.mean(distance_avg), step)
+                observation_image_type = f"{pre_log}agent/observation_error"
                 if (hasattr(self.env_wrapper.env, 'is_successful') and self.env_wrapper.env.is_successful()) or \
                     (not hasattr(self.env_wrapper.env, 'is_successful') and num_steps == self.max_steps):
-                    observation_image_type = "agent/observation_end"
+                    observation_image_type = f"{pre_log}agent/observation_end"
                 self.logger.image_summar(observation_image_type, observation_image, step)
+                print("-------------------->{} {} {}".format(np.mean(reward_avg), np.mean(heading_avg), np.mean(distance_avg)))
             else:
                 if num_steps == self.max_steps:
                     self.logger.image_summar("agent_{}/observation_end".format(self.n_agent), observation_image, step)
