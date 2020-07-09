@@ -36,7 +36,9 @@ class Agent(object):
 
         # Logger
         log_path = f"{log_dir}/agent-{n_agent}"
-        self.logger = Logger(log_path, name = f"agent-{n_agent}")
+        self.logger = None
+        if not config["test"]:
+            self.logger = Logger(log_path, name = f"{log_dir}/agent-{n_agent}")
 
     def update_actor_learner(self, learner_w_queue):
         """Update local actor to the actor from learner. """
@@ -54,7 +56,17 @@ class Agent(object):
 
         best_reward = -float("inf")
         rewards = []
+        all_test_done = False
+        if self.config["test"]:
+            self.env_wrapper.env.use_test_setting()
+        log_path = f"{self.log_dir}/agent-{self.n_agent}"
         while training_on.value:
+            if all_test_done:
+                break
+            elif self.config["test"]:
+                if self.logger is not None:
+                    self.logger.close()
+                self.logger = Logger(log_path, name = f"{self.config['log_string']}_path_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
             episode_reward = 0
             num_steps = 0
             self.local_episode += 1
@@ -85,7 +97,8 @@ class Agent(object):
                 else:
                     action = action.detach().cpu().numpy().flatten()
                 next_state, reward, done = self.env_wrapper.step(action)
-                heading_avg.append(np.rad2deg(state[-1]*math.pi))
+                if hasattr(self.env_wrapper.env, 'get_angle_person_robot'):
+                    heading_avg.append(np.rad2deg(self.env_wrapper.env.get_angle_person_robot()))
                 distance_avg.append(math.hypot(state[0]*6, state[1]*6))
                 reward_avg.append(reward)
                 episode_reward += reward
@@ -93,7 +106,12 @@ class Agent(object):
                 state = self.env_wrapper.normalise_state(state)
                 reward = self.env_wrapper.normalise_reward(reward)
 
-                self.exp_buffer.append((state, action, reward))
+                if not self.config["test"]:
+                    self.exp_buffer.append((state, action, reward))
+                else:
+                    self.logger.scalar_summary("reward", reward_avg[-1], len(reward_avg))
+                    self.logger.scalar_summary("distance", distance_avg[-1], len(reward_avg))
+                    self.logger.scalar_summary("heading", heading_avg[-1], len(reward_avg))
 
                 # We need at least N steps in the experience buffer before we can compute Bellman
                 # rewards and add an N-step experience to replay memory
@@ -109,7 +127,7 @@ class Agent(object):
 
                 state = next_state
 
-                if done or num_steps == self.max_steps:
+                if done or (not self.config["test"] and num_steps == self.max_steps):
                     if hasattr(self.env_wrapper.env, 'is_skip_run') and self.env_wrapper.env.is_skip_run():
                         print("skiping this run as it is not useful")
                         skip_run = True
@@ -137,7 +155,11 @@ class Agent(object):
             step = update_step.value
             observation_image = self.env_wrapper.env.get_current_observation_image()
             if self.agent_type == "exploitation":
-                self.logger.scalar_summary("agent/heading_avg", np.mean(heading_avg), step)
+                if self.config["test"]:
+                    self.logger = Logger(log_path, name = f"{self.config['log_string']}_p_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
+                    step=0
+                if len(heading_avg)>0:
+                    self.logger.scalar_summary("agent/heading_avg", np.mean(heading_avg), step)
                 self.logger.scalar_summary("agent/reward_avg", np.mean(reward_avg), step)
                 self.logger.scalar_summary("agent/distance_avg", np.mean(distance_avg), step)
                 observation_image_type = "agent/observation_error"
@@ -155,8 +177,14 @@ class Agent(object):
             self.logger.scalar_summary("agent/episode_step", num_steps, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
 
+            if self.config["test"]:
+                if not self.env_wrapper.env.is_finish():
+                    self.env_wrapper.env.next_setting()
+                else:
+                    all_test_done = True
+
             # Saving agent
-            if self.local_episode % self.num_episode_save == 0 or episode_reward > best_reward:
+            if not self.config["test"] and (self.local_episode % self.num_episode_save == 0 or episode_reward > best_reward):
                 if episode_reward > best_reward:
                     best_reward = episode_reward
                 self.save(f"local_episode_{self.local_episode}_reward_{best_reward:4f}")
