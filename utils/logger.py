@@ -18,7 +18,7 @@ class Logger(object):
         if not use_wandb:
             self.writer = SummaryWriter(log_dir)
         else:
-            wandb.init(project=project_name, name=name)
+            wandb.init(project=project_name, name=name, reinit=True)
 
         self.use_wandb = use_wandb
         self.info = logger.info
@@ -45,5 +45,8 @@ class Logger(object):
             self.writer.add_scalar(tag, value, step)
 
     def close(self):
-        self.writer.close()
+        if self.use_wandb:
+            wandb.join()
+        else:
+            self.writer.close()
 
