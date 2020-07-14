@@ -22,6 +22,7 @@ class Agent(object):
         self.max_steps = config['max_ep_length']
         self.num_episode_save = config['num_episode_save']
         self.global_episode = global_episode
+        self.use_global_episode = True
         self.local_episode = 0
         self.log_dir = log_dir
 
@@ -153,7 +154,10 @@ class Agent(object):
             if skip_run:
                 continue
             step = update_step.value
+            global_step = self.global_episode.value
             observation_image = self.env_wrapper.env.get_current_observation_image()
+            if self.use_global_episode:
+                step= global_step
             if self.agent_type == "exploitation":
                 pre_log = ""
                 if self.config["test"]:
@@ -166,11 +170,12 @@ class Agent(object):
                 self.logger.scalar_summary(f"{pre_log}agent/reward_avg", np.mean(reward_avg), step)
                 self.logger.scalar_summary(f"{pre_log}agent/distance_avg", np.mean(distance_avg), step)
                 observation_image_type = f"{pre_log}agent/observation_error"
+                observation_image_type = f"{pre_log}agentg/observation_error"
                 if (hasattr(self.env_wrapper.env, 'is_successful') and self.env_wrapper.env.is_successful()) or \
                     (not hasattr(self.env_wrapper.env, 'is_successful') and num_steps == self.max_steps):
                     observation_image_type = f"{pre_log}agent/observation_end"
                 self.logger.image_summar(observation_image_type, observation_image, step)
-                print("-------------------->{} {} {}".format(np.mean(reward_avg), np.mean(heading_avg), np.mean(distance_avg)))
+                print("-------------------->{} {} test: {} global: {} ,step: {}".format(np.mean(reward_avg), np.mean(heading_avg), self.config["test"], global_step, step))
             else:
                 if num_steps == self.max_steps:
                     self.logger.image_summar("agent_{}/observation_end".format(self.n_agent), observation_image, step)

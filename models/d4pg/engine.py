@@ -9,7 +9,9 @@ except RuntimeError:
     pass
 import os
 
-import torch from models.agent import Agent from utils.logger import Logger
+import torch
+from models.agent import Agent
+from utils.logger import Logger
 
 from .d4pg import LearnerD4PG
 from .networks import PolicyNetwork
