@@ -170,7 +170,6 @@ class Agent(object):
                 self.logger.scalar_summary(f"{pre_log}agent/reward_avg", np.mean(reward_avg), step)
                 self.logger.scalar_summary(f"{pre_log}agent/distance_avg", np.mean(distance_avg), step)
                 observation_image_type = f"{pre_log}agent/observation_error"
-                observation_image_type = f"{pre_log}agentg/observation_error"
                 if (hasattr(self.env_wrapper.env, 'is_successful') and self.env_wrapper.env.is_successful()) or \
                     (not hasattr(self.env_wrapper.env, 'is_successful') and num_steps == self.max_steps):
                     observation_image_type = f"{pre_log}agent/observation_end"
