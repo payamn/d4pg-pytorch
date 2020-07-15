@@ -155,6 +155,7 @@ class Agent(object):
                 continue
             step = update_step.value
             global_step = self.global_episode.value
+            self.env_wrapper.env.set_mode_person_based_on_episode_number(global_step)
             observation_image = self.env_wrapper.env.get_current_observation_image()
             if self.use_global_episode:
                 step= global_step
