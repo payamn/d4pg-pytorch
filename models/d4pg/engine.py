@@ -34,7 +34,8 @@ def sampler_worker(config, replay_queue, batch_queue, replay_priorities_queue, t
     batch_size = config['batch_size']
 
     # Logger
-    logger = Logger(f"{log_dir}/data_struct", name="sampler")
+    run_name = config["run_name"]
+    logger = Logger(f"{log_dir}/data_struct", name=f"{run_name}/sampler")
 
     # Create replay buffer
     replay_buffer = create_replay_buffer(config)
@@ -173,7 +174,7 @@ class Engine(object):
         batch_queue_size = config['batch_queue_size']
         n_agents = config['num_agents']
         config['test'] = True
-        config['log_string'] = "point_rn"
+        config['log_string'] = "point_rc"
 
         # Create directory for experiment
         experiment_dir = f"{config['results_path']}/{config['env']}-{config['model']}-{datetime.now():%Y-%m-%d_%H:%M:%S}"

@@ -39,7 +39,9 @@ class Agent(object):
         log_path = f"{log_dir}/agent-{n_agent}"
         self.logger = None
         if not config["test"]:
-            self.logger = Logger(log_path, name = f"{log_dir}/agent-{n_agent}")
+            run_name = config["run_name"]
+            self.logger = Logger(log_path, name = f"{run_name}/agent-{n_agent}")
+
 
     def update_actor_learner(self, learner_w_queue):
         """Update local actor to the actor from learner. """

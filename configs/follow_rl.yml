@@ -7,6 +7,7 @@ action_low: -1
 action_high: 1
 num_agents: 4
 random_seed: 2019
+run_name: cmd_vel
 policy_weights: results/
 policy_weights_best: results/policy_best2.pt
 value_weights: results/

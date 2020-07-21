@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class Logger(object):
 
-    def __init__(self, log_dir, name, project_name="follow_ahead_d4pg_v0.1newplannerdense600numa41", use_wandb=True, reinit=False):
+    def __init__(self, log_dir, name, project_name="follow_ahead_d4pg_v1_auto", use_wandb=True, reinit=False):
         """
         General logger.
 
@@ -17,19 +17,29 @@ class Logger(object):
 
         if not use_wandb:
             self.writer = SummaryWriter(log_dir)
+            self.log_dir = log_dir
         else:
             wandb.init(project=project_name, name=name, reinit=reinit)
+            self.log_dir = wandb.run.dir
 
         self.use_wandb = use_wandb
         self.info = logger.info
         self.debug = logger.debug
         self.warning = logger.warning
 
+
+    def get_log_dir(self):
+        return self.log_dir
+
     def image_summar(self, tag, image, step):
         if self.use_wandb:
             wandb.log({tag: wandb.Image(image)},step=step)
         else:
             self.writer.add_image(tag, image, step, dataformats='HWC')
+
+    def save_model(self, address):
+        if self.use_wandb:
+            wandb.save(address)
 
     def scalar_summary(self, tag, value, step):
         """

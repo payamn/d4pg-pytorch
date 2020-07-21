@@ -30,6 +30,7 @@ class LearnerD4PG(object):
         v_max = config['v_max']
         self.path_weight_value = config['value_weights']
         self.path_weight_policy = config['policy_weights']
+        self.run_name = config['run_name']
         num_atoms = config['num_atoms']
         self.counter = 0
         self.device = config['device']
@@ -42,7 +43,10 @@ class LearnerD4PG(object):
         self.prioritized_replay = config['replay_memory_prioritized']
         self.learner_w_queue = learner_w_queue
 
-        self.logger = Logger(f"{log_dir}/learner", name="learner")
+        self.logger = Logger(f"{log_dir}/learner", name="{}/learner".format(self.run_name))
+        self.path_weight_run = self.logger.get_log_dir()
+        if not os.path.exists(self.path_weight_run):
+            os.makedirs(self.path_weight_run)
 
         # Noise process
         self.ou_noise = OUNoise(dim=config["action_dim"], low=config["action_low"], high=config["action_high"])
@@ -173,15 +177,21 @@ class LearnerD4PG(object):
         if self.best_policy_loss > policy_loss.item():
             print("saving best policy loss")
             self.best_policy_loss = policy_loss.item()
+            torch.save(self.policy_net.state_dict(), os.path.join(self.path_weight_run,  "policy_best.pt"))
             torch.save(self.policy_net.state_dict(), self.path_weight_policy + "policy_best2.pt")
+            self.logger.save_model("policy_best.pt")
         if self.best_value_loss > value_loss.item():
             print("saving best value loss")
             self.best_value_loss= value_loss.item()
             torch.save(self.value_net.state_dict(), self.path_weight_value + "value_best2.pt")
-        if self.counter % 100 == 0:
+            torch.save(self.value_net.state_dict(), os.path.join(self.path_weight_run,  "value_best.pt"))
+            self.logger.save_model("value_best.pt")
+        if self.counter % 10000 == 0:
             print("saving weights")
-            torch.save(self.policy_net.state_dict(), self.path_weight_policy + "policy.pt")
-            torch.save(self.value_net.state_dict(), self.path_weight_value + "value.pt")
+            torch.save(self.policy_net.state_dict(), os.path.join(self.path_weight_run,  "{}_policy.pt".format(self.counter)))
+            torch.save(self.value_net.state_dict(), os.path.join(self.path_weight_run, "{}_value.pt".format(self.counter)))
+            self.logger.save_model("{}_policy.pt".format(self.counter))
+            self.logger.save_model("{}_value.pt".format(self.counter))
 
     def run(self, training_on, batch_queue, replay_priority_queue, update_step):
         while update_step.value < self.num_train_steps:
