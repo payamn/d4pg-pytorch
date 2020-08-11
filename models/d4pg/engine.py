@@ -35,7 +35,7 @@ def sampler_worker(config, replay_queue, batch_queue, replay_priorities_queue, t
 
     # Logger
     run_name = config["run_name"]
-    logger = Logger(f"{log_dir}/data_struct", name=f"{run_name}/sampler")
+    logger = Logger(f"{log_dir}/data_struct", name=f"{run_name}/sampler", project_name=config["project_name"])
 
     # Create replay buffer
     replay_buffer = create_replay_buffer(config)
@@ -137,7 +137,6 @@ class Engine(object):
                                                           replay_priorities_queue, batch_queue, update_step, experiment_dir))
         processes.append(p)
 
-        # Single agent for exploitation
         p = torch_mp.Process(target=agent_worker,
                              args=(config, target_policy_net, None, global_episode, 0, "exploitation", experiment_dir,
                                    training_on, replay_queue, update_step))
@@ -174,7 +173,6 @@ class Engine(object):
         batch_queue_size = config['batch_queue_size']
         n_agents = config['num_agents']
         config['test'] = True
-        config['log_string'] = "point_rc"
 
         # Create directory for experiment
         experiment_dir = f"{config['results_path']}/{config['env']}-{config['model']}-{datetime.now():%Y-%m-%d_%H:%M:%S}"
@@ -190,13 +188,6 @@ class Engine(object):
         learner_w_queue = torch_mp.Queue(maxsize=n_agents)
         replay_priorities_queue = torch_mp.Queue(maxsize=256)
 
-        # Data sampler
-        # batch_queue = torch_mp.Queue(maxsize=batch_queue_size)
-        # p = torch_mp.Process(target=sampler_worker,
-        #                      args=(config, replay_queue, batch_queue, replay_priorities_queue, training_on,
-        #                            global_episode, update_step, experiment_dir))
-        # processes.append(p)
-
         # Learner (neural net training process)
         target_policy_net = PolicyNetwork(config['state_dims'], config['action_dims'],
                                           config['dense_size'], device=config['device'])
@@ -208,38 +199,20 @@ class Engine(object):
 
         target_policy_net.share_memory()
 
-        # p = torch_mp.Process(target=learner_worker, args=(config, training_on, policy_net, target_policy_net, learner_w_queue,
-        #                                                   replay_priorities_queue, batch_queue, update_step, experiment_dir))
-        # processes.append(p)
-
         # Single agent for exploitation
-        p = torch_mp.Process(target=agent_worker,
-                             args=(config, target_policy_net, None, global_episode, 0, "exploitation", experiment_dir,
-                                   training_on, replay_queue, update_step))
-        processes.append(p)
-
-        # Agents (exploration processes)
-        # if self.use_supervisor:
-        #     n_agents = 2
-        # else:
-        #     n_agents = 1
-
-        # for i in range(1, n_agents):
-        #     p = torch_mp.Process(target=agent_worker,
-        #                          args=(config, policy_net, learner_w_queue, global_episode, i, "exploration", experiment_dir,
-        #                                training_on, replay_queue, update_step))
-        #     processes.append(p)
-
-        if self.use_supervisor:
+        if config["use_base_line"] == 1:
             p = torch_mp.Process(target=agent_worker,
-                                 args=(config, target_policy_net, learner_w_queue, global_episode, i+1, "supervisor", experiment_dir,
+                                 args=(config, target_policy_net, learner_w_queue, global_episode, 0, "supervisor", experiment_dir,
                                        training_on, replay_queue, update_step))
-            processes.append(p)
+        else:
+            p = torch_mp.Process(target=agent_worker,
+                                 args=(config, target_policy_net, None, global_episode, 0, "exploitation", experiment_dir,
+                                       training_on, replay_queue, update_step))
+        processes.append(p)
 
 
         for p in processes:
             p.start()
-            #time.sleep(5)
         for p in processes:
             p.join()
 

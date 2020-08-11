@@ -7,7 +7,7 @@ logger = logging.getLogger(__name__)
 
 class Logger(object):
 
-    def __init__(self, log_dir, name, project_name="follow_ahead_d4pg_v1_auto", use_wandb=True, reinit=False):
+    def __init__(self, log_dir, name, project_name="follow_ahead_d4pg_v1_auto", use_wandb=True, reinit=True):
         """
         General logger.
 

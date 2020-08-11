@@ -40,7 +40,7 @@ class Agent(object):
         self.logger = None
         if not config["test"]:
             run_name = config["run_name"]
-            self.logger = Logger(log_path, name = f"{run_name}/agent-{n_agent}")
+            self.logger = Logger(log_path, name = f"{run_name}/agent-{n_agent}", project_name=config["project_name"])
 
 
     def update_actor_learner(self, learner_w_queue):
@@ -69,7 +69,7 @@ class Agent(object):
             elif self.config["test"]:
                 # if self.logger is not None:
                 #     self.logger.close()
-                self.logger = Logger(log_path, name = f"{self.config['log_string']}_path_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
+                self.logger = Logger(log_path, name = f"{self.config['run_name']}_path_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
             episode_reward = 0
             num_steps = 0
             self.local_episode += 1
@@ -161,11 +161,11 @@ class Agent(object):
             observation_image = self.env_wrapper.env.get_current_observation_image()
             if self.use_global_episode:
                 step= global_step
-            if self.agent_type == "exploitation":
+            if self.agent_type == "exploitation" or self.agent_type == "supervisor":
                 pre_log = ""
                 if self.config["test"]:
                     #self.logger.close()
-                    self.logger = Logger(log_path, name = f"{self.config['log_string']}_p_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
+                    self.logger = Logger(log_path, name = f"{self.config['run_name']}_p_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
                     step = 1
                     pre_log = f"path_{self.env_wrapper.env.get_test_path_number()}"
                 if len(heading_avg)>0:

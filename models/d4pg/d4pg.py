@@ -43,7 +43,7 @@ class LearnerD4PG(object):
         self.prioritized_replay = config['replay_memory_prioritized']
         self.learner_w_queue = learner_w_queue
 
-        self.logger = Logger(f"{log_dir}/learner", name="{}/learner".format(self.run_name))
+        self.logger = Logger(f"{log_dir}/learner", name="{}/learner".format(self.run_name), project_name=config["project_name"])
         self.path_weight_run = self.logger.get_log_dir()
         if not os.path.exists(self.path_weight_run):
             os.makedirs(self.path_weight_run)
