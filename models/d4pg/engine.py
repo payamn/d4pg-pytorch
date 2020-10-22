@@ -17,7 +17,6 @@ from .d4pg import LearnerD4PG
 from .networks import PolicyNetwork
 from .replay_buffer import create_replay_buffer
 
-
 def sampler_worker(config, replay_queue, batch_queue, replay_priorities_queue, training_on,
                    global_episode, update_step, log_dir=''):
     """
@@ -168,6 +167,7 @@ class Engine(object):
         print("End.")
 
     def test(self):
+        print ("in test")
         config = self.config
 
         batch_queue_size = config['batch_queue_size']
@@ -195,6 +195,7 @@ class Engine(object):
             target_policy_net.load_state_dict(torch.load(config["policy_weights_best"]))
         else:
             print ("cannot load policy {}".format(config["policy_weights_best"]))
+            exit(2)
         policy_net = copy.deepcopy(target_policy_net)
 
         target_policy_net.share_memory()

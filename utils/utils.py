@@ -5,7 +5,7 @@ from glob import glob
 import os
 import yaml
 
-import gym_gazeboros
+import gym_vicon
 
 
 
@@ -68,7 +68,9 @@ def read_config(path):
         cfg = yaml.load(ymlfile)
 
     # Load environment from gym to set its params
+    print ("before make")
     env = gym.make(cfg['env'])
+    print ("after make")
     cfg['state_dims'] = env.observation_space.shape[0]
     cfg['state_bound_low'] = env.observation_space.low
     cfg['state_bound_high'] = env.observation_space.high

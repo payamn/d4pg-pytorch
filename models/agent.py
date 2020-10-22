@@ -28,6 +28,7 @@ class Agent(object):
 
         # Create environment
         self.env_wrapper = create_env_wrapper(config)
+        print ("before set agent {}".format(n_agent))
         self.env_wrapper.env.set_agent(self.n_agent)
         print ("set agent {}".format(n_agent))
         self.ou_noise = OUNoise(dim=config["action_dim"], low=config["action_low"], high=config["action_high"])
@@ -69,7 +70,11 @@ class Agent(object):
             elif self.config["test"]:
                 # if self.logger is not None:
                 #     self.logger.close()
-                self.logger = Logger(log_path, name = f"{self.config['run_name']}_path_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
+                if hasattr(self.env_wrapper.env, 'get_test_path_number'):
+                  self.logger = Logger(log_path, name = f"{self.config['run_name']}_path_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
+                else:
+                  self.logger = Logger(log_path, name = f"{self.config['run_name']}", project_name="real_world")
+
             episode_reward = 0
             num_steps = 0
             self.local_episode += 1
@@ -92,14 +97,18 @@ class Agent(object):
             skip_run = False
             while not done:
                 action = self.actor.get_action(state)
+                print(f"before {self.agent_type}")
                 if self.agent_type == "supervisor":
                     action = self.env_wrapper.env.get_supervised_action()
                 elif self.agent_type == "exploration":
                     action = self.ou_noise.get_action(action, num_steps)
                     action = action.squeeze(0)
                 else:
+                    print("before get flatten")
                     action = action.detach().cpu().numpy().flatten()
+                print("before step")
                 next_state, reward, done = self.env_wrapper.step(action)
+                print("after step")
                 if hasattr(self.env_wrapper.env, 'get_angle_person_robot'):
                     heading_avg.append(np.rad2deg(self.env_wrapper.env.get_angle_person_robot()))
                 distance_avg.append(math.hypot(state[0]*6, state[1]*6))
@@ -157,13 +166,14 @@ class Agent(object):
                 continue
             step = update_step.value
             global_step = self.global_episode.value
-            self.env_wrapper.env.set_mode_person_based_on_episode_number(global_step)
+            if self.config["mode"] != "real_world":
+              self.env_wrapper.env.set_mode_person_based_on_episode_number(global_step)
             observation_image = self.env_wrapper.env.get_current_observation_image()
             if self.use_global_episode:
                 step= global_step
             if self.agent_type == "exploitation" or self.agent_type == "supervisor":
                 pre_log = ""
-                if self.config["test"]:
+                if self.config["test"] and self.config["mode"] != "real_world":
                     #self.logger.close()
                     self.logger = Logger(log_path, name = f"{self.config['run_name']}_p_{self.env_wrapper.env.get_test_path_number()}", project_name="evaluate")
                     step = 1
@@ -188,7 +198,7 @@ class Agent(object):
             self.logger.scalar_summary("agent/episode_step", num_steps, step)
             self.logger.scalar_summary("agent/episode_timing", time.time() - ep_start_time, step)
 
-            if self.config["test"]:
+            if self.config["test"] and self.config["mode"] != "real_world":
                 if not self.env_wrapper.env.is_finish():
                     self.env_wrapper.env.next_setting()
                 else:

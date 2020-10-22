@@ -1,6 +1,6 @@
 # Environment parameters
 
-env: gazeboros-v0
+env: vicon-v0
 state_dim: 27
 action_dim: 2
 action_low: -1
@@ -8,12 +8,16 @@ action_high: 1
 num_agents: 4
 random_seed: 2019
 run_name: base_line
-use_base_line: 1
-project_name: follow_ahead_d4pg_v1_auto
+mode: real_world
+use_base_line: 0
+project_name: follow_ahead_real
 policy_weights: results/
-policy_weights_best: results/policy_best2.pt
+#policy_weights_best: /home/payam/Downloads/weights/planner_w_noise_nr_600na61nsr10_policy.pt
+policy_weights_best: /home/payam/Downloads/weights/cmd_vel_400.pt
+#policy_weights_best: /home/payam/Downloads/weights/180000_policy.pt
+#policy_weights_best: /home/payam/Downloads/weights/policy_700_planner_1.5.pt
 value_weights: results/
-value_weights_best: results/value_best2.pt
+value_weights_best: /home/payam/Downloads/weights/planner_w_noise_nr_600na61nsr10_value.pt
 
 # Training parameters
 
@@ -41,7 +45,7 @@ critic_learning_rate: 0.0005
 actor_learning_rate: 0.0005
 dense_size: 400 # size of the 2 hidden layers in networks
 final_layer_init: 0.003
-num_atoms: 51 # number of atoms in output layer of distributed critic
+num_atoms: 61 # number of atoms in output layer of distributed critic
 v_min: -20.0 # lower bound of critic value output distribution
 v_max: 0.0 # upper bound of critic value output distribution
 tau: 0.001 # parameter for soft target network updates
